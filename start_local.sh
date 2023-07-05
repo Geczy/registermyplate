@@ -13,7 +13,7 @@ if [[ $(docker ps -aq -f name=$CONTAINER_NAME) ]]; then
   docker rm $CONTAINER_NAME
 fi
 
-docker build --platform linux/amd64 \
+docker build \
   --build-arg POSTGRES_URL="$POSTGRES_URL" \
   -t $CONTAINER_NAME .
 

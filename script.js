@@ -41,7 +41,10 @@ app.get("/", async (req, res) => {
 
     if (result.rowCount > 0) {
       browser = await puppeteer.launch({
-        headless: "new",
+        // use Chromium installed with `apt` (solves Problem 1)
+        executablePath: "/usr/bin/chromium",
+        headless: true,
+        args: ["--no-sandbox", "--disable-gpu"],
       });
 
       const { apartment_number, plate, make, model, color } = result.rows[0];

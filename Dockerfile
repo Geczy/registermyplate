@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
   rm -rf /var/lib/apt/lists/*
 
 # Set the environment variables
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
   PUPPETEER_USER_DATA_DIR=/tmp/puppeteer_user_data
 
 # Set the working directory inside the container

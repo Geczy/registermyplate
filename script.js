@@ -20,24 +20,27 @@ app.get("/", async (req, res) => {
     // Parse the query parameters from the URL
     const queryParams = url.parse(req.url, true).query;
     const username = queryParams.name;
-    const apartmentNumber = queryParams.apt;
 
-    if (!username || !apartmentNumber) {
+    if (!username) {
       throw new Error(
-        "Missing required query parameters: name and/or apartment",
+        "Missing required query parameters: name and/or apartment"
       );
     }
 
     // Fetch the apartment and plate details from the database
     client = await pool.connect();
     const query = `
-      SELECT apartment_number, plate, make, model, color
+      SELECT apartment_number, visitor_code, plate, make, model, color
       FROM apartment
       JOIN users ON users.username = $1
-      WHERE apartment_number = $2;
+      WHERE apartment_number = (
+        SELECT apartment_number
+        FROM apartment
+        LIMIT 1
+      );
     `;
 
-    const result = await client.query(query, [username, apartmentNumber]);
+    const result = await client.query(query, [username]);
 
     if (result.rowCount > 0) {
       browser = await puppeteer.launch({
@@ -47,7 +50,8 @@ app.get("/", async (req, res) => {
         args: ["--no-sandbox", "--disable-gpu"],
       });
 
-      const { apartment_number, plate, make, model, color } = result.rows[0];
+      const { apartment_number, visitor_code, plate, make, model, color } =
+        result.rows[0];
 
       const page = await browser.newPage();
 
@@ -71,9 +75,9 @@ app.get("/", async (req, res) => {
       await page.click("#MainContent_txt_VisitorCode");
 
       await page.waitForSelector(
-        "#MainContent_txt_VisitorCode:not([disabled])",
+        "#MainContent_txt_VisitorCode:not([disabled])"
       );
-      await page.type("#MainContent_txt_VisitorCode", apartment_number);
+      await page.type("#MainContent_txt_VisitorCode", visitor_code);
 
       await page.waitForSelector("#MainContent_btn_PropertyNext");
       await page.click("#MainContent_btn_PropertyNext");
@@ -112,7 +116,7 @@ app.get("/", async (req, res) => {
       await page.click("#MainContent_btn_Auth_Next");
 
       await page.waitForSelector(
-        "#MainContent_txt_Review_PlateNumber:not([disabled])",
+        "#MainContent_txt_Review_PlateNumber:not([disabled])"
       );
       await page.type("#MainContent_txt_Review_PlateNumber", plate);
 
@@ -127,19 +131,11 @@ app.get("/", async (req, res) => {
 
       const text = await page.evaluate(
         () =>
-          document.querySelector("#MainContent_lbl_Results_Expires")
-            .textContent,
+          document.querySelector("#MainContent_lbl_Results_Expires").textContent
       );
 
-      console.log("Apartment:", apartment_number);
-      console.log("Plate:", plate);
-      console.log("Make:", make);
-      console.log("Model:", model);
-      console.log("Color:", color);
-      console.log(text);
-
       res.send(
-        `DONE. Apartment: ${apartment_number}<br>Plate: ${plate}<br>Make: ${make}<br>Model: ${model}<br>Color: ${color}<br>Expires: ${text}`,
+        `Success. You're good until ${text} at ${apartment_number}. Car: ${color} ${make} ${model} with ${plate} plate.`
       );
     } else {
       res.send("No matching apartment found.");
